@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bike Build Tracker</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-top">
+      <h1 class="app-title">Bike Build Tracker</h1>
+      <div class="header-actions">
+        <select id="build-switcher" aria-label="Switch build"></select>
+        <button type="button" id="new-build-btn" class="btn btn-secondary">+ New Build</button>
+      </div>
+    </div>
+    <div class="header-settings">
+      <input type="text" id="build-name" aria-label="Build name" placeholder="Build name">
+      <label class="setting">
+        Currency
+        <input type="text" id="currency-symbol" aria-label="Currency symbol" size="3" maxlength="5" value="$">
+      </label>
+      <label class="setting">
+        Weight unit
+        <select id="weight-unit" aria-label="Weight unit">
+          <option value="g">grams (g)</option>
+          <option value="oz">ounces (oz)</option>
+        </select>
+      </label>
+      <label class="setting">
+        Filter
+        <select id="acquired-filter" aria-label="Filter items">
+          <option value="all">Show all</option>
+          <option value="acquired">Acquired only</option>
+          <option value="remaining">Remaining only</option>
+        </select>
+      </label>
+    </div>
+  </header>
+
+  <div id="summary-bar" class="summary-bar" role="status"></div>
+
+  <main id="app-main" class="app-main">
+    <div id="builds-list" class="builds-list" hidden>
+      <h2>Your builds</h2>
+      <ul id="builds-list-items"></ul>
+    </div>
+    <div id="build-view">
+      <div id="category-groups"></div>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-actions">
+      <button type="button" id="export-csv-btn" class="btn">Export CSV</button>
+      <button type="button" id="import-csv-btn" class="btn">Import CSV</button>
+      <button type="button" id="export-json-btn" class="btn">Export Backup (JSON)</button>
+      <button type="button" id="import-json-btn" class="btn">Import Backup (JSON)</button>
+      <button type="button" id="reset-btn" class="btn btn-danger">Reset All Data</button>
+    </div>
+    <p class="footer-note">All data is stored locally in your browser.</p>
+  </footer>
+
+  <input type="file" id="import-csv-input" accept=".csv,text/csv" hidden>
+  <input type="file" id="import-json-input" accept=".json,application/json" hidden>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <div id="modal-backdrop" class="modal-backdrop" hidden>
+    <div id="modal" class="modal" role="dialog" aria-modal="true"></div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
