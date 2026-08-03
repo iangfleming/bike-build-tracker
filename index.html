@@ -13,6 +13,7 @@
       <div class="header-actions">
         <select id="build-switcher" aria-label="Switch build"></select>
         <button type="button" id="new-build-btn" class="btn btn-secondary">+ New Build</button>
+        <button type="button" id="new-group-btn" class="btn btn-secondary">+ New Category</button>
       </div>
     </div>
     <div class="header-settings">
@@ -20,13 +21,6 @@
       <label class="setting">
         Currency
         <input type="text" id="currency-symbol" aria-label="Currency symbol" size="3" maxlength="5" value="$">
-      </label>
-      <label class="setting">
-        Weight unit
-        <select id="weight-unit" aria-label="Weight unit">
-          <option value="g">grams (g)</option>
-          <option value="oz">ounces (oz)</option>
-        </select>
       </label>
       <label class="setting">
         Filter
@@ -42,25 +36,30 @@
   <div id="summary-bar" class="summary-bar" role="status"></div>
 
   <main id="app-main" class="app-main">
-    <div id="builds-list" class="builds-list" hidden>
-      <h2>Your builds</h2>
-      <ul id="builds-list-items"></ul>
-    </div>
-    <div id="build-view">
-      <div id="category-groups"></div>
+    <div class="app-layout">
+      <div class="app-content">
+        <div id="builds-list" class="builds-list" hidden>
+          <h2>Your builds</h2>
+          <ul id="builds-list-items"></ul>
+        </div>
+        <div id="build-view">
+          <div id="category-groups"></div>
+        </div>
+      </div>
+
+      <aside id="sidebar" class="app-sidebar" aria-label="Build actions">
+        <h2 class="sidebar-title">Build actions</h2>
+        <div class="sidebar-actions">
+          <button type="button" id="export-csv-btn" class="btn">Export CSV</button>
+          <button type="button" id="import-csv-btn" class="btn">Import CSV</button>
+          <button type="button" id="export-json-btn" class="btn">Export Backup (JSON)</button>
+          <button type="button" id="import-json-btn" class="btn">Import Backup (JSON)</button>
+          <button type="button" id="reset-btn" class="btn btn-danger">Reset All Data</button>
+        </div>
+        <p class="sidebar-note">All data is stored locally in your browser. No accounts, no servers.</p>
+      </aside>
     </div>
   </main>
-
-  <footer class="app-footer">
-    <div class="footer-actions">
-      <button type="button" id="export-csv-btn" class="btn">Export CSV</button>
-      <button type="button" id="import-csv-btn" class="btn">Import CSV</button>
-      <button type="button" id="export-json-btn" class="btn">Export Backup (JSON)</button>
-      <button type="button" id="import-json-btn" class="btn">Import Backup (JSON)</button>
-      <button type="button" id="reset-btn" class="btn btn-danger">Reset All Data</button>
-    </div>
-    <p class="footer-note">All data is stored locally in your browser.</p>
-  </footer>
 
   <input type="file" id="import-csv-input" accept=".csv,text/csv" hidden>
   <input type="file" id="import-json-input" accept=".json,application/json" hidden>

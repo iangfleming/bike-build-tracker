@@ -1,7 +1,5 @@
 import { uuid, nowIso, toNumber } from './utils.js';
 
-export const GRAM_MULTIPLIERS = { g: 1, oz: 28.349523125 };
-
 export function createItem(partial = {}) {
   return {
     id: partial.id || uuid(),
@@ -33,10 +31,12 @@ export function createBuild(partial = {}, categoryGroups) {
   return {
     id: partial.id || uuid(),
     name: partial.name || 'My Build',
-    weightUnit: partial.weightUnit === 'oz' ? 'oz' : 'g',
     currencySymbol: partial.currencySymbol || '$',
     createdAt: partial.createdAt || nowIso(),
     updatedAt: partial.updatedAt || nowIso(),
+    customGroups: Array.isArray(partial.customGroups)
+      ? partial.customGroups.filter((g) => typeof g === 'string' && g.trim())
+      : [],
     items: Array.isArray(partial.items)
       ? partial.items.map(normalizeItem)
       : [],
@@ -45,6 +45,23 @@ export function createBuild(partial = {}, categoryGroups) {
 
 export function normalizeBuild(build, categoryGroups) {
   return createBuild(build, categoryGroups);
+}
+
+// Keeps the taxonomy coherent: any legacy custom subcategory (a category that
+// isn't a default category of its group) is lifted to its own top-level
+// category by rewriting its (categoryGroup, category) pair.
+export function normalizeItemCategories(items, categoryGroups) {
+  const defaultSet = new Set(
+    categoryGroups.flatMap((g) => g.categories.map((c) => `${g.name}\u0000${c}`))
+  );
+  for (const item of items) {
+    if (!item || defaultSet.has(`${item.categoryGroup}\u0000${item.category}`)) continue;
+    const name = item.category || item.categoryGroup;
+    if (!name) continue;
+    item.category = item.category || name;
+    item.categoryGroup = name;
+  }
+  return items;
 }
 
 export function categoryGroupList(categoryGroups) {

@@ -1,4 +1,4 @@
-import { csvEscapeField, download, sanitizeFile, datedStamp, gToOz } from './utils.js';
+import { csvEscapeField, download, sanitizeFile, datedStamp } from './utils.js';
 import { createItem } from './model.js';
 
 export const CSV_COLUMNS = [
@@ -8,7 +8,6 @@ export const CSV_COLUMNS = [
   'brand',
   'price',
   'weight',
-  'weightUnit',
   'quantity',
   'acquired',
   'notes',
@@ -20,11 +19,6 @@ export function buildToCsv(build) {
   for (const item of build.items) {
     const values = CSV_COLUMNS.map((col) => {
       if (col === 'acquired') return item.acquired ? 'true' : 'false';
-      if (col === 'weight') {
-        const display = build.weightUnit === 'oz' ? gToOz(item.weight) : item.weight;
-        return csvEscapeField(display);
-      }
-      if (col === 'weightUnit') return build.weightUnit;
       return csvEscapeField(item[col] ?? '');
     });
     rows.push(values.join(','));
@@ -95,8 +89,6 @@ const HEADER_ALIASES = {
   brand: 'brand',
   price: 'price',
   weight: 'weight',
-  weightunit: 'weightUnit',
-  unit: 'weightUnit',
   quantity: 'quantity',
   qty: 'quantity',
   acquired: 'acquired',
@@ -166,7 +158,6 @@ export function parseCsvItems(csvText) {
       brand: get('brand'),
       price,
       weight,
-      weightUnit: get('weightUnit'),
       quantity,
       acquired: parseBoolean(get('acquired')),
       notes: get('notes'),

@@ -1,4 +1,4 @@
-import { esc, formatNumber, formatWeight } from '../utils.js';
+import { esc, formatNumber, formatWeightDual } from '../utils.js';
 import { buildTotals } from '../model.js';
 import { populateSwitcher } from './buildSwitcher.js';
 import { renderGroup } from './categorySection.js';
@@ -23,22 +23,17 @@ export function renderAll(state, categoryGroups, opts = {}) {
 export function renderHeaderFields(build) {
   const nameInput = document.getElementById('build-name');
   const currencyInput = document.getElementById('currency-symbol');
-  const unitSelect = document.getElementById('weight-unit');
   if (!build) {
     nameInput.value = '';
     currencyInput.value = '$';
-    unitSelect.value = 'g';
     nameInput.disabled = true;
     currencyInput.disabled = true;
-    unitSelect.disabled = true;
     return;
   }
   nameInput.value = build.name;
   currencyInput.value = build.currencySymbol;
-  unitSelect.value = build.weightUnit;
   nameInput.disabled = false;
   currencyInput.disabled = false;
-  unitSelect.disabled = false;
 }
 
 export function renderSummaryBar(build) {
@@ -54,7 +49,7 @@ export function renderSummaryBar(build) {
     <div class="summary-item summary-total">
       <span class="summary-label">Total</span>
       <span class="summary-value">${cur}${formatNumber(t.price)}</span>
-      <span class="summary-sub">${formatWeight(t.weight, build.weightUnit)}</span>
+      <span class="summary-sub">${formatWeightDual(t.weight)}</span>
     </div>
     <div class="summary-item">
       <span class="summary-label">Items</span>
@@ -68,12 +63,12 @@ export function renderSummaryBar(build) {
     <div class="summary-item">
       <span class="summary-label">Spent</span>
       <span class="summary-value">${cur}${formatNumber(t.priceAcquired)}</span>
-      <span class="summary-sub">${formatWeight(t.weightAcquired, build.weightUnit)}</span>
+      <span class="summary-sub">${formatWeightDual(t.weightAcquired)}</span>
     </div>
     <div class="summary-item">
       <span class="summary-label">Remaining</span>
       <span class="summary-value">${cur}${formatNumber(t.priceRemaining)}</span>
-      <span class="summary-sub">${formatWeight(t.weight - t.weightAcquired, build.weightUnit)}</span>
+      <span class="summary-sub">${formatWeightDual(t.weight - t.weightAcquired)}</span>
     </div>
   `;
 }

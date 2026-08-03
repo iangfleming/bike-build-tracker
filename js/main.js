@@ -1,7 +1,7 @@
 import { DEFAULT_CATEGORY_GROUPS } from './categories.js';
 import { load, save, reset, migrate } from './storage.js';
 import { createBuild, createItem } from './model.js';
-import { nowIso, ozToG, debounce } from './utils.js';
+import { nowIso, debounce } from './utils.js';
 import { exportBuildCsv, exportAllJson, parseCsvItems } from './csv.js';
 import {
   renderAll,
@@ -29,9 +29,14 @@ function ofItem(build, id) {
 function categoryGroupsWithCustoms(build) {
   const groups = structuredClone(categoryGroups);
   if (!build) return groups;
+  for (const name of build.customGroups) {
+    if (!groups.some((g) => g.name === name)) {
+      groups.push({ name, categories: [name], custom: true });
+    }
+  }
   for (const item of build.items) {
     if (item.categoryGroup && !groups.some((g) => g.name === item.categoryGroup)) {
-      groups.push({ name: item.categoryGroup, categories: [] });
+      groups.push({ name: item.categoryGroup, categories: [item.category || item.categoryGroup], custom: true });
     }
   }
   for (const g of groups) {
@@ -72,12 +77,6 @@ function render() {
   });
 }
 
-// Weight is stored internally in grams; the add/edit form shows display units.
-function displayToStored(value, build) {
-  const n = Number(value) || 0;
-  return build.weightUnit === 'oz' ? ozToG(n) : n;
-}
-
 // ---------- Category & item events ----------
 
 function handleCategoryEvent(type, payload) {
@@ -90,6 +89,17 @@ function handleCategoryEvent(type, payload) {
         `.add-row[data-category="${CSS.escape(payload.category)}"]`
       );
       if (row) {
+        const group = row.closest('.category-group');
+        if (group) {
+          const toggle = group.querySelector('.group-toggle');
+          const body = group.querySelector('.group-body');
+          if (toggle && body) {
+            toggle.setAttribute('aria-expanded', 'true');
+            body.hidden = false;
+            const caret = toggle.querySelector('.group-caret');
+            if (caret) caret.textContent = '▾';
+          }
+        }
         row.scrollIntoView({ block: 'center', behavior: 'smooth' });
         const nameField = row.querySelector('.add-name');
         if (nameField) nameField.focus();
@@ -104,7 +114,7 @@ function handleCategoryEvent(type, payload) {
           name: payload.name,
           brand: payload.brand,
           price: payload.price,
-          weight: displayToStored(payload.weight, build),
+          weight: Number(payload.weight) || 0,
           quantity: payload.quantity,
           notes: payload.notes,
           link: payload.link,
@@ -132,7 +142,7 @@ function handleCategoryEvent(type, payload) {
         item.name = payload.name;
         item.brand = payload.brand;
         item.price = payload.price;
-        item.weight = displayToStored(payload.weight, build);
+        item.weight = Number(payload.weight) || 0;
         item.quantity = payload.quantity;
         item.notes = payload.notes;
         item.link = payload.link;
@@ -150,8 +160,12 @@ function handleCategoryEvent(type, payload) {
       confirmDelete(payload.itemId);
       break;
     }
-    case 'add-category': {
-      openAddCategoryModal(payload.group);
+    case 'rename-group': {
+      openRenameGroupModal(payload.group);
+      break;
+    }
+    case 'delete-group': {
+      confirmDeleteGroup(payload.group);
       break;
     }
   }
@@ -212,13 +226,13 @@ function appendActions(modal, actions) {
   modal.appendChild(wrap);
 }
 
-function openAddCategoryModal(groupName) {
+function openNewGroupModal() {
   const modal = openModal(
-    'Add Category',
-    `<p>Add a custom category to the <strong>${groupName}</strong> group.</p>
+    'New top-level category',
+    `<p>Create a new top-level section for items that don't fit the defaults.</p>
      <label class="form-field">
        <span>Category name</span>
-       <input type="text" id="new-category-name" placeholder="e.g. Fenders">
+       <input type="text" id="new-group-name" placeholder="e.g. Lights, Fenders, Accessories">
      </label>`
   );
   appendActions(modal, [
@@ -227,20 +241,102 @@ function openAddCategoryModal(groupName) {
       label: 'Add Category',
       className: 'btn-primary',
       onClick: () => {
-        const name = document.getElementById('new-category-name').value.trim();
+        const build = getBuild();
+        if (!build) return;
+        const name = document.getElementById('new-group-name').value.trim();
         if (!name) {
           showToast('Enter a category name.', 'error');
           return;
         }
-        const g = categoryGroups.find((x) => x.name === groupName);
-        if (g && !g.categories.includes(name)) g.categories.push(name);
+        if (build.customGroups.includes(name) || defaultGroupNameExists(name)) {
+          showToast(`"${name}" already exists.`, 'error');
+          return;
+        }
+        build.customGroups.push(name);
         closeModal();
         commit();
-        showToast(`Added category "${name}".`);
+        showToast(`Added top-level category "${name}".`);
       },
     },
   ]);
-  document.getElementById('new-category-name').focus();
+  document.getElementById('new-group-name').focus();
+}
+
+function defaultGroupNameExists(name) {
+  return categoryGroups.some((g) => g.name.toLowerCase() === name.toLowerCase());
+}
+
+function openRenameGroupModal(groupName) {
+  const modal = openModal(
+    'Rename category',
+    `<p>Rename the top-level category <strong>${groupName}</strong>.</p>
+     <label class="form-field">
+       <span>New name</span>
+       <input type="text" id="rename-group-name" value="${escAttr(groupName)}">
+     </label>`
+  );
+  appendActions(modal, [
+    { label: 'Cancel', className: 'btn-ghost', onClick: closeModal },
+    {
+      label: 'Rename',
+      className: 'btn-primary',
+      onClick: () => {
+        const build = getBuild();
+        if (!build) return;
+        const name = document.getElementById('rename-group-name').value.trim();
+        if (!name) {
+          showToast('Enter a category name.', 'error');
+          return;
+        }
+        if (name !== groupName) {
+          const idx = build.customGroups.indexOf(groupName);
+          if (idx === -1) {
+            showToast('Category not found.', 'error');
+            return;
+          }
+          if (build.customGroups.includes(name) || defaultGroupNameExists(name)) {
+            showToast(`"${name}" already exists.`, 'error');
+            return;
+          }
+          build.customGroups[idx] = name;
+          for (const item of build.items) {
+            if (item.categoryGroup === groupName) {
+              item.categoryGroup = name;
+              if (item.category === groupName) item.category = name;
+            }
+          }
+        }
+        closeModal();
+        commit();
+        showToast('Category renamed.');
+      },
+    },
+  ]);
+  document.getElementById('rename-group-name').focus();
+}
+
+function confirmDeleteGroup(groupName) {
+  confirmAction(
+    `Delete the top-level category "${groupName}" and all ${countItemsInGroup(groupName)} item(s) in it?`,
+    'Delete'
+  ).then((ok) => {
+    if (!ok) return;
+    const build = getBuild();
+    if (!build) return;
+    build.customGroups = build.customGroups.filter((g) => g !== groupName);
+    build.items = build.items.filter((i) => i.categoryGroup !== groupName);
+    commit();
+    showToast(`Deleted category "${groupName}".`);
+  });
+}
+
+function countItemsInGroup(groupName) {
+  const build = getBuild();
+  return build ? build.items.filter((i) => i.categoryGroup === groupName).length : 0;
+}
+
+function escAttr(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function openNewBuildModal() {
@@ -363,14 +459,6 @@ function wireHeader() {
     commit();
   });
 
-  document.getElementById('weight-unit').addEventListener('change', (e) => {
-    const build = getBuild();
-    if (!build) return;
-    build.weightUnit = e.target.value;
-    commit();
-    showToast('Weight unit updated. Values are stored in grams.');
-  });
-
   document.getElementById('acquired-filter').addEventListener('change', (e) => {
     filter = e.target.value;
     render();
@@ -384,6 +472,7 @@ function wireHeader() {
   });
 
   document.getElementById('new-build-btn').addEventListener('click', openNewBuildModal);
+  document.getElementById('new-group-btn').addEventListener('click', openNewGroupModal);
 }
 
 function wireFooter() {

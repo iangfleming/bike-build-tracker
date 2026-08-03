@@ -1,4 +1,4 @@
-import { esc, formatNumber, formatWeight, gToOz } from '../utils.js';
+import { esc, formatNumber, formatWeightDual } from '../utils.js';
 import { itemsInCategory, sumItems } from '../model.js';
 
 function currency(build) {
@@ -13,31 +13,41 @@ export function renderGroup(
     (i) => i.categoryGroup === group.name
   );
   const gTotal = sumItems(groupItems);
+  const hasItems = groupItems.length > 0;
+  const expanded = hasItems;
 
   const section = document.createElement('section');
   section.className = 'category-group';
   section.dataset.group = group.name;
 
+  const customControls = group.custom
+    ? `
+      <button type="button" class="btn btn-small btn-ghost rename-group-btn" title="Rename category">✎ Rename</button>
+      <button type="button" class="btn btn-small btn-danger delete-group-btn" title="Delete category">Delete</button>
+    `
+    : '';
+
   const header = document.createElement('div');
   header.className = 'group-header';
   header.innerHTML = `
-    <button type="button" class="group-toggle" aria-expanded="true">
-      <span class="group-caret">▾</span>
+    <button type="button" class="group-toggle" aria-expanded="${expanded}">
+      <span class="group-caret">${expanded ? '▾' : '▸'}</span>
       <h2 class="group-title">${esc(group.name)}</h2>
     </button>
     <div class="group-subtotal">
       <span class="group-total-price">${currency(build)}${formatNumber(gTotal.price)}</span>
-      <span class="group-total-weight">${formatWeight(gTotal.weight, build.weightUnit)}</span>
+      <span class="group-total-weight">${formatWeightDual(gTotal.weight)}</span>
       <span class="group-total-count">${gTotal.count} item${gTotal.count === 1 ? '' : 's'}</span>
       <span class="group-acquired">${countAcquired(groupItems)}</span>
     </div>
     <button type="button" class="btn btn-small add-group-item-btn">+ Add item</button>
-    <button type="button" class="btn btn-small btn-ghost add-category-btn">+ Category</button>
+    ${customControls}
   `;
   section.appendChild(header);
 
   const body = document.createElement('div');
   body.className = 'group-body';
+  body.hidden = !expanded;
 
   for (const category of group.categories) {
     const catItems = itemsInCategory(build, group.name, category);
@@ -54,7 +64,7 @@ export function renderGroup(
       <h3 class="category-title">${esc(category)}</h3>
       <div class="category-subtotal">
         <span class="cat-total-price">${currency(build)}${formatNumber(catTotal.price)}</span>
-        <span class="cat-total-weight">${formatWeight(catTotal.weight, build.weightUnit)}</span>
+        <span class="cat-total-weight">${formatWeightDual(catTotal.weight)}</span>
       </div>
     `;
     catSection.appendChild(catHeader);
@@ -97,16 +107,27 @@ export function renderGroup(
     header.querySelector('.group-caret').textContent = expanded ? '▸' : '▾';
   });
 
-  header.querySelector('.add-category-btn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    onEvent('add-category', { group: group.name });
-  });
-
   header.querySelector('.add-group-item-btn').addEventListener('click', (e) => {
     e.stopPropagation();
     const first = group.categories[0];
     if (first) onEvent('add-item', { group: group.name, category: first, scrollTo: true });
   });
+
+  const renameBtn = header.querySelector('.rename-group-btn');
+  if (renameBtn) {
+    renameBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onEvent('rename-group', { group: group.name });
+    });
+  }
+
+  const deleteBtn = header.querySelector('.delete-group-btn');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onEvent('delete-group', { group: group.name });
+    });
+  }
 
   return section;
 }
@@ -151,7 +172,7 @@ function renderItemRow(item, build, onEvent) {
     </div>
     <div class="item-figures">
       <span class="item-price" title="Total price">${currency(build)}${formatNumber(item.price * item.quantity)}</span>
-      <span class="item-weight" title="Total weight">${formatWeight(item.weight * item.quantity, build.weightUnit)}</span>
+      <span class="item-weight" title="Total weight">${formatNumber(item.weight * item.quantity)} g</span>
     </div>
     <div class="item-actions">
       <button type="button" class="btn btn-icon item-edit" title="Edit item" aria-label="Edit item">✎</button>
@@ -190,7 +211,7 @@ function renderAddRow(build, group, category, onEvent) {
     { cls: 'name', ph: 'Name', type: 'text', required: true },
     { cls: 'brand', ph: 'Brand', type: 'text' },
     { cls: 'price', ph: 'Price', type: 'number', step: '0.01', min: '0' },
-    { cls: 'weight', ph: `Weight (${build.weightUnit})`, type: 'number', step: '0.01', min: '0' },
+    { cls: 'weight', ph: 'Weight (g)', type: 'number', step: '0.01', min: '0' },
     { cls: 'qty', ph: 'Qty', type: 'number', step: '1', min: '1', value: '1' },
   ];
 
@@ -258,8 +279,8 @@ function renderAddRow(build, group, category, onEvent) {
   return form;
 }
 
-function displayWeight(item, build) {
-  return build.weightUnit === 'oz' ? gToOz(item.weight) : item.weight;
+function displayWeight(item) {
+  return item.weight;
 }
 
 export function renderEditFormRow(container, build, item, onEvent) {
@@ -271,7 +292,7 @@ export function renderEditFormRow(container, build, item, onEvent) {
     ['name', 'Name', item.name],
     ['brand', 'Brand', item.brand],
     ['price', 'Price', item.price],
-    ['weight', `Weight (${build.weightUnit})`, displayWeight(item, build)],
+    ['weight', 'Weight (g)', displayWeight(item)],
     ['qty', 'Qty', item.quantity],
   ];
 

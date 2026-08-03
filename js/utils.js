@@ -33,12 +33,13 @@ export function toNumber(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
-export function gToOz(grams) {
-  return grams / 28.349523125;
-}
+const G_TO_LB = 1 / 453.59237;
+const G_TO_KG = 1 / 1000;
 
-export function ozToG(ounces) {
-  return ounces * 28.349523125;
+export function formatWeightDual(grams) {
+  const lb = grams * G_TO_LB;
+  const kg = grams * G_TO_KG;
+  return `${formatNumber(lb)} lb · ${formatNumber(kg)} kg`;
 }
 
 export function formatNumber(value, decimals = 2) {
@@ -47,11 +48,6 @@ export function formatNumber(value, decimals = 2) {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
-}
-
-export function formatWeight(grams, displayUnit, decimals = 2) {
-  if (displayUnit === 'oz') return `${formatNumber(gToOz(grams), decimals)} oz`;
-  return `${formatNumber(grams, decimals)} g`;
 }
 
 export function formatDateTime(iso) {

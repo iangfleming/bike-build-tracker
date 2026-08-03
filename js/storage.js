@@ -1,4 +1,5 @@
-import { createBuild } from './model.js';
+import { createBuild, normalizeBuild, normalizeItemCategories } from './model.js';
+import { DEFAULT_CATEGORY_GROUPS } from './categories.js';
 
 export const STORAGE_KEY = 'bikeBuildTracker:v1';
 export const CURRENT_VERSION = 1;
@@ -9,6 +10,11 @@ export function migrate(raw) {
   }
   const data = { ...raw };
   if (!Array.isArray(data.builds)) data.builds = [];
+  data.builds = data.builds.map((b) => {
+    const normalized = normalizeBuild(b);
+    normalizeItemCategories(normalized.items, DEFAULT_CATEGORY_GROUPS);
+    return normalized;
+  });
   if (typeof data.activeBuildId !== 'string') data.activeBuildId = '';
   if (!data.builds.some((b) => b.id === data.activeBuildId)) {
     data.activeBuildId = data.builds[0] ? data.builds[0].id : '';

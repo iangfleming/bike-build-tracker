@@ -23,7 +23,7 @@ export const DEFAULT_CATEGORY_GROUPS = [
   },
   {
     name: 'Brakes',
-    categories: ['Brakes (Front)', 'Brakes (Rear)', 'Rotors'],
+    categories: ['Brakes', 'Rotors'],
   },
   {
     name: 'Cockpit & Touchpoints',
