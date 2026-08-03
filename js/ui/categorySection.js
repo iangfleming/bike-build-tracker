@@ -1,133 +1,107 @@
 import { esc, formatNumber, formatWeightDual } from '../utils.js';
-import { itemsInCategory, sumItems } from '../model.js';
+import { categorySubtotal, realItems } from '../model.js';
 
 function currency(build) {
   return build.currencySymbol || '';
 }
 
-export function renderGroup(
+export function renderCategory(
   container,
-  { group, build, filter, onEvent, editingItemId }
+  { category, build, filter, onEvent, editingItemId }
 ) {
-  const groupItems = build.items.filter(
-    (i) => i.categoryGroup === group.name
-  );
-  const gTotal = sumItems(groupItems);
-  const hasItems = groupItems.length > 0;
+  const catItems = build.items.filter((i) => i.category === category);
+  const defaults = catItems.filter((i) => i.default);
+  const real = realItems(catItems);
+  const filtered = filterItems(real, filter);
+  const catTotal = categorySubtotal(build, category);
+  const hasItems = real.length > 0;
   const expanded = hasItems;
 
   const section = document.createElement('section');
-  section.className = 'category-group';
-  section.dataset.group = group.name;
-
-  const customControls = group.custom
-    ? `
-      <button type="button" class="btn btn-small btn-ghost rename-group-btn" title="Rename category">✎ Rename</button>
-      <button type="button" class="btn btn-small btn-danger delete-group-btn" title="Delete category">Delete</button>
-    `
-    : '';
+  section.className = 'category-section';
+  section.dataset.category = category;
 
   const header = document.createElement('div');
-  header.className = 'group-header';
+  header.className = 'category-header';
   header.innerHTML = `
-    <button type="button" class="group-toggle" aria-expanded="${expanded}">
-      <span class="group-caret">${expanded ? '▾' : '▸'}</span>
-      <h2 class="group-title">${esc(group.name)}</h2>
+    <button type="button" class="category-toggle" aria-expanded="${expanded}">
+      <span class="category-caret">${expanded ? '▾' : '▸'}</span>
+      <h2 class="category-title">${esc(category)}</h2>
     </button>
-    <div class="group-subtotal">
-      <span class="group-total-price">${currency(build)}${formatNumber(gTotal.price)}</span>
-      <span class="group-total-weight">${formatWeightDual(gTotal.weight)}</span>
-      <span class="group-total-count">${gTotal.count} item${gTotal.count === 1 ? '' : 's'}</span>
-      <span class="group-acquired">${countAcquired(groupItems)}</span>
+    <div class="category-subtotal">
+      <span class="cat-total-price">${currency(build)}${formatNumber(catTotal.price)}</span>
+      <span class="cat-total-weight">${formatWeightDual(catTotal.weight)}</span>
+      <span class="cat-total-count">${catTotal.count} item${catTotal.count === 1 ? '' : 's'}</span>
+      <span class="cat-acquired">${countAcquired(real)}</span>
     </div>
-    <button type="button" class="btn btn-small add-group-item-btn">+ Add item</button>
-    ${customControls}
+    <button type="button" class="btn btn-small add-category-item-btn">+ Add item</button>
+    <button type="button" class="btn btn-small btn-ghost rename-category-btn" title="Rename category">✎ Rename</button>
+    <button type="button" class="btn btn-small btn-danger delete-category-btn" title="Delete category">Delete</button>
   `;
   section.appendChild(header);
 
   const body = document.createElement('div');
-  body.className = 'group-body';
+  body.className = 'category-body';
   body.hidden = !expanded;
 
-  for (const category of group.categories) {
-    const catItems = itemsInCategory(build, group.name, category);
-    const filtered = filterItems(catItems, filter);
-    const catTotal = sumItems(catItems);
+  const table = document.createElement('div');
+  table.className = 'items-table';
 
-    const catSection = document.createElement('section');
-    catSection.className = 'category-block';
-    catSection.dataset.category = category;
-
-    const catHeader = document.createElement('div');
-    catHeader.className = 'category-header';
-    catHeader.innerHTML = `
-      <h3 class="category-title">${esc(category)}</h3>
-      <div class="category-subtotal">
-        <span class="cat-total-price">${currency(build)}${formatNumber(catTotal.price)}</span>
-        <span class="cat-total-weight">${formatWeightDual(catTotal.weight)}</span>
-      </div>
-    `;
-    catSection.appendChild(catHeader);
-
-    const table = document.createElement('div');
-    table.className = 'items-table';
-
-    if (filtered.length > 0) {
-      for (const item of filtered) {
-        if (editingItemId === item.id) {
-          renderEditFormRow(table, build, item, onEvent);
-        } else {
-          table.appendChild(renderItemRow(item, build, onEvent));
-        }
+  if (filtered.length > 0) {
+    for (const item of filtered) {
+      if (editingItemId === item.id) {
+        renderEditFormRow(table, build, item, onEvent);
+      } else {
+        table.appendChild(renderItemRow(item, build, onEvent));
       }
-    } else if (catItems.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'items-empty';
-      empty.textContent = 'No items yet.';
-      table.appendChild(empty);
-    } else {
-      const empty = document.createElement('div');
-      empty.className = 'items-empty';
-      empty.textContent = 'No items match the current filter.';
-      table.appendChild(empty);
     }
-
-    table.appendChild(renderAddRow(build, group.name, category, onEvent));
-    catSection.appendChild(table);
-    body.appendChild(catSection);
+  } else if (real.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'items-empty';
+    empty.textContent = 'No items yet.';
+    table.appendChild(empty);
+  } else {
+    const empty = document.createElement('div');
+    empty.className = 'items-empty';
+    empty.textContent = 'No items match the current filter.';
+    table.appendChild(empty);
   }
 
+  for (const item of defaults) {
+    if (editingItemId === item.id) {
+      renderEditFormRow(table, build, item, onEvent);
+    } else {
+      table.appendChild(renderPlaceholderRow(item, build, onEvent));
+    }
+  }
+
+  table.appendChild(renderAddRow(build, category, onEvent));
+  body.appendChild(table);
   section.appendChild(body);
   container.appendChild(section);
 
-  header.querySelector('.group-toggle').addEventListener('click', () => {
-    const expanded = header.querySelector('.group-toggle').getAttribute('aria-expanded') === 'true';
-    header.querySelector('.group-toggle').setAttribute('aria-expanded', String(!expanded));
+  header.querySelector('.category-toggle').addEventListener('click', () => {
+    const toggle = header.querySelector('.category-toggle');
+    const expanded = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', String(!expanded));
     body.hidden = expanded;
-    header.querySelector('.group-caret').textContent = expanded ? '▸' : '▾';
+    header.querySelector('.category-caret').textContent = expanded ? '▸' : '▾';
   });
 
-  header.querySelector('.add-group-item-btn').addEventListener('click', (e) => {
+  header.querySelector('.add-category-item-btn').addEventListener('click', (e) => {
     e.stopPropagation();
-    const first = group.categories[0];
-    if (first) onEvent('add-item', { group: group.name, category: first, scrollTo: true });
+    onEvent('add-item', { category, scrollTo: true });
   });
 
-  const renameBtn = header.querySelector('.rename-group-btn');
-  if (renameBtn) {
-    renameBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      onEvent('rename-group', { group: group.name });
-    });
-  }
+  header.querySelector('.rename-category-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    onEvent('rename-category', { category });
+  });
 
-  const deleteBtn = header.querySelector('.delete-group-btn');
-  if (deleteBtn) {
-    deleteBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      onEvent('delete-group', { group: group.name });
-    });
-  }
+  header.querySelector('.delete-category-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    onEvent('delete-category', { category });
+  });
 
   return section;
 }
@@ -141,6 +115,36 @@ export function filterItems(items, filter) {
   if (filter === 'acquired') return items.filter((i) => i.acquired);
   if (filter === 'remaining') return items.filter((i) => !i.acquired);
   return items;
+}
+
+function renderPlaceholderRow(item, build, onEvent) {
+  const row = document.createElement('div');
+  row.className = 'item-row item-row-default';
+  row.dataset.itemId = item.id;
+
+  row.innerHTML = `
+    <div class="item-default-icon" aria-hidden="true">◇</div>
+    <div class="item-main">
+      <div class="item-name">${esc(item.name)}</div>
+      <div class="item-sub">
+        <span class="item-hint">Default item — fill in details to add to the build, or delete.</span>
+      </div>
+    </div>
+    <div class="item-actions">
+      <button type="button" class="btn btn-icon item-edit" title="Edit item" aria-label="Edit item">✎</button>
+      <button type="button" class="btn btn-icon item-delete" title="Delete item" aria-label="Delete item">✕</button>
+    </div>
+  `;
+
+  row.querySelector('.item-edit').addEventListener('click', () => {
+    onEvent('edit-item', { itemId: item.id });
+  });
+
+  row.querySelector('.item-delete').addEventListener('click', () => {
+    onEvent('delete-item', { itemId: item.id });
+  });
+
+  return row;
 }
 
 function renderItemRow(item, build, onEvent) {
@@ -196,7 +200,7 @@ function renderItemRow(item, build, onEvent) {
   return row;
 }
 
-function renderAddRow(build, group, category, onEvent) {
+function renderAddRow(build, category, onEvent) {
   const form = document.createElement('form');
   form.className = 'add-row';
   form.dataset.category = category;
@@ -255,7 +259,6 @@ function renderAddRow(build, group, category, onEvent) {
     e.preventDefault();
     if (!inputs.name.value.trim()) return;
     onEvent('add-item-submit', {
-      group,
       category,
       name: inputs.name.value.trim(),
       brand: inputs.brand.value.trim(),

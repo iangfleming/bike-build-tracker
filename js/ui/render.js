@@ -1,9 +1,9 @@
 import { esc, formatNumber, formatWeightDual } from '../utils.js';
 import { buildTotals } from '../model.js';
 import { populateSwitcher } from './buildSwitcher.js';
-import { renderGroup } from './categorySection.js';
+import { renderCategory } from './categorySection.js';
 
-export function renderAll(state, categoryGroups, opts = {}) {
+export function renderAll(state, opts = {}) {
   const build = state.builds.find((b) => b.id === state.activeBuildId);
   renderHeaderFields(build);
   populateSwitcher(document.getElementById('build-switcher'), state.builds);
@@ -17,7 +17,7 @@ export function renderAll(state, categoryGroups, opts = {}) {
   }
   document.getElementById('build-view').hidden = false;
   document.getElementById('builds-list').hidden = true;
-  renderCategoryGroups(build, categoryGroups, opts);
+  renderCategories(build, opts);
 }
 
 export function renderHeaderFields(build) {
@@ -96,11 +96,11 @@ function renderBuildsList(state) {
   }
 }
 
-export function renderCategoryGroups(build, categoryGroups, { filter, onEvent, editingItemId }) {
+export function renderCategories(build, { filter, onEvent, editingItemId }) {
   const container = document.getElementById('category-groups');
   container.innerHTML = '';
-  for (const group of categoryGroups) {
-    renderGroup(container, { group, build, filter, onEvent, editingItemId });
+  for (const category of build.categories) {
+    renderCategory(container, { category, build, filter, onEvent, editingItemId });
   }
 }
 

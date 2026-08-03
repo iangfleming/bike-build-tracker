@@ -1,9 +1,9 @@
 import { uuid, nowIso, toNumber } from './utils.js';
+import { DEFAULT_CATEGORY_NAMES, defaultItemsFor } from './categories.js';
 
 export function createItem(partial = {}) {
   return {
     id: partial.id || uuid(),
-    categoryGroup: partial.categoryGroup || '',
     category: partial.category || '',
     name: partial.name || '',
     brand: partial.brand || '',
@@ -13,6 +13,7 @@ export function createItem(partial = {}) {
     notes: partial.notes || '',
     link: partial.link || '',
     acquired: parseBooleanValue(partial.acquired),
+    default: Boolean(partial.default),
   };
 }
 
@@ -27,55 +28,49 @@ export function normalizeItem(item) {
   return createItem(item);
 }
 
-export function createBuild(partial = {}, categoryGroups) {
+function seedDefaultItems(categories) {
+  const items = [];
+  for (const category of DEFAULT_CATEGORY_NAMES) {
+    if (!categories.includes(category)) continue;
+    for (const name of defaultItemsFor(category)) {
+      items.push(createItem({ category, name, default: true }));
+    }
+  }
+  return items;
+}
+
+export function createBuild(partial = {}) {
+  const categories = Array.isArray(partial.categories)
+    ? partial.categories.filter((c) => typeof c === 'string' && c.trim())
+    : [...DEFAULT_CATEGORY_NAMES];
+  const items = Array.isArray(partial.items)
+    ? partial.items.map(normalizeItem)
+    : seedDefaultItems(categories);
   return {
     id: partial.id || uuid(),
     name: partial.name || 'My Build',
     currencySymbol: partial.currencySymbol || '$',
     createdAt: partial.createdAt || nowIso(),
     updatedAt: partial.updatedAt || nowIso(),
-    customGroups: Array.isArray(partial.customGroups)
-      ? partial.customGroups.filter((g) => typeof g === 'string' && g.trim())
-      : [],
-    items: Array.isArray(partial.items)
-      ? partial.items.map(normalizeItem)
-      : [],
+    categories,
+    items,
   };
 }
 
-export function normalizeBuild(build, categoryGroups) {
-  return createBuild(build, categoryGroups);
+export function normalizeBuild(build) {
+  return createBuild(build);
 }
 
-// Keeps the taxonomy coherent: any legacy custom subcategory (a category that
-// isn't a default category of its group) is lifted to its own top-level
-// category by rewriting its (categoryGroup, category) pair.
-export function normalizeItemCategories(items, categoryGroups) {
-  const defaultSet = new Set(
-    categoryGroups.flatMap((g) => g.categories.map((c) => `${g.name}\u0000${c}`))
-  );
-  for (const item of items) {
-    if (!item || defaultSet.has(`${item.categoryGroup}\u0000${item.category}`)) continue;
-    const name = item.category || item.categoryGroup;
-    if (!name) continue;
-    item.category = item.category || name;
-    item.categoryGroup = name;
-  }
-  return items;
+export function realItems(items) {
+  return items.filter((i) => !i.default);
 }
 
-export function categoryGroupList(categoryGroups) {
-  return categoryGroups.map((g) => g.name);
+export function categoryList(build) {
+  return build.categories;
 }
 
-export function categoryList(categoryGroups) {
-  return categoryGroups.flatMap((g) => g.categories);
-}
-
-export function itemsInCategory(build, categoryGroup, category) {
-  return build.items.filter(
-    (item) => item.categoryGroup === categoryGroup && item.category === category
-  );
+export function itemsInCategory(build, category) {
+  return build.items.filter((item) => item.category === category);
 }
 
 export function sumItems(items, acquiredOnly) {
@@ -91,21 +86,18 @@ export function sumItems(items, acquiredOnly) {
   return { price, weight, count };
 }
 
-export function groupSubtotal(build, groupName) {
-  return sumItems(build.items.filter((i) => i.categoryGroup === groupName));
-}
-
-export function categorySubtotal(build, categoryGroup, category) {
+export function categorySubtotal(build, category) {
   return sumItems(
     build.items.filter(
-      (i) => i.categoryGroup === categoryGroup && i.category === category
+      (i) => i.category === category && !i.default
     )
   );
 }
 
 export function buildTotals(build) {
-  const all = sumItems(build.items);
-  const acquired = sumItems(build.items, true);
+  const real = realItems(build.items);
+  const all = sumItems(real);
+  const acquired = sumItems(real, true);
   return {
     price: all.price,
     weight: all.weight,
