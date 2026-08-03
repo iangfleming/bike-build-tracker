@@ -2,7 +2,6 @@ import { csvEscapeField, download, sanitizeFile, datedStamp } from './utils.js';
 import { createItem } from './model.js';
 
 export const CSV_COLUMNS = [
-  'categoryGroup',
   'category',
   'name',
   'brand',
@@ -17,6 +16,7 @@ export const CSV_COLUMNS = [
 export function buildToCsv(build) {
   const rows = [CSV_COLUMNS.join(',')];
   for (const item of build.items) {
+    if (item.default) continue;
     const values = CSV_COLUMNS.map((col) => {
       if (col === 'acquired') return item.acquired ? 'true' : 'false';
       return csvEscapeField(item[col] ?? '');
@@ -83,8 +83,8 @@ export function parseCsv(text) {
 }
 
 const HEADER_ALIASES = {
-  categorygroup: 'categoryGroup',
   category: 'category',
+  categorygroup: 'category',
   name: 'name',
   brand: 'brand',
   price: 'price',
@@ -152,7 +152,6 @@ export function parseCsvItems(csvText) {
     if (rowInvalid > 0) invalidNumeric++;
 
     const item = createItem({
-      categoryGroup: get('categoryGroup'),
       category: get('category'),
       name: get('name'),
       brand: get('brand'),
@@ -166,7 +165,7 @@ export function parseCsvItems(csvText) {
 
     const missing = [];
     if (!item.name) missing.push('name');
-    if (!item.categoryGroup && !item.category) missing.push('categoryGroup/category');
+    if (!item.category) missing.push('category');
     if (missing.length) {
       warnings.push(`Row ${r + 1}: missing ${missing.join(', ')} — row skipped.`);
       continue;

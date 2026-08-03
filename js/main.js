@@ -1,4 +1,3 @@
-import { DEFAULT_CATEGORY_GROUPS } from './categories.js';
 import { load, save, reset, migrate } from './storage.js';
 import { createBuild, createItem } from './model.js';
 import { nowIso, debounce } from './utils.js';
@@ -14,7 +13,6 @@ import {
 const state = load();
 let filter = 'all';
 let editingItemId = null;
-let categoryGroups = structuredClone(DEFAULT_CATEGORY_GROUPS);
 
 const debouncedPersist = debounce(persist, 300);
 
@@ -24,31 +22,6 @@ function getBuild() {
 
 function ofItem(build, id) {
   return build.items.find((i) => i.id === id);
-}
-
-function categoryGroupsWithCustoms(build) {
-  const groups = structuredClone(categoryGroups);
-  if (!build) return groups;
-  for (const name of build.customGroups) {
-    if (!groups.some((g) => g.name === name)) {
-      groups.push({ name, categories: [name], custom: true });
-    }
-  }
-  for (const item of build.items) {
-    if (item.categoryGroup && !groups.some((g) => g.name === item.categoryGroup)) {
-      groups.push({ name: item.categoryGroup, categories: [item.category || item.categoryGroup], custom: true });
-    }
-  }
-  for (const g of groups) {
-    const existing = new Set(g.categories);
-    for (const item of build.items) {
-      if (item.categoryGroup === g.name && item.category && !existing.has(item.category)) {
-        g.categories.push(item.category);
-        existing.add(item.category);
-      }
-    }
-  }
-  return groups;
 }
 
 function persist() {
@@ -70,7 +43,7 @@ function commit() {
 }
 
 function render() {
-  renderAll(state, categoryGroupsWithCustoms(getBuild()), {
+  renderAll(state, {
     filter,
     editingItemId,
     onEvent: handleCategoryEvent,
@@ -89,14 +62,14 @@ function handleCategoryEvent(type, payload) {
         `.add-row[data-category="${CSS.escape(payload.category)}"]`
       );
       if (row) {
-        const group = row.closest('.category-group');
-        if (group) {
-          const toggle = group.querySelector('.group-toggle');
-          const body = group.querySelector('.group-body');
+        const section = row.closest('.category-section');
+        if (section) {
+          const toggle = section.querySelector('.category-toggle');
+          const body = section.querySelector('.category-body');
           if (toggle && body) {
             toggle.setAttribute('aria-expanded', 'true');
             body.hidden = false;
-            const caret = toggle.querySelector('.group-caret');
+            const caret = toggle.querySelector('.category-caret');
             if (caret) caret.textContent = '▾';
           }
         }
@@ -109,7 +82,6 @@ function handleCategoryEvent(type, payload) {
     case 'add-item-submit': {
       build.items.push(
         createItem({
-          categoryGroup: payload.group,
           category: payload.category,
           name: payload.name,
           brand: payload.brand,
@@ -146,6 +118,7 @@ function handleCategoryEvent(type, payload) {
         item.quantity = payload.quantity;
         item.notes = payload.notes;
         item.link = payload.link;
+        item.default = false;
       }
       editingItemId = null;
       commit();
@@ -160,12 +133,12 @@ function handleCategoryEvent(type, payload) {
       confirmDelete(payload.itemId);
       break;
     }
-    case 'rename-group': {
-      openRenameGroupModal(payload.group);
+    case 'rename-category': {
+      openRenameCategoryModal(payload.category);
       break;
     }
-    case 'delete-group': {
-      confirmDeleteGroup(payload.group);
+    case 'delete-category': {
+      confirmDeleteCategory(payload.category);
       break;
     }
   }
@@ -226,13 +199,13 @@ function appendActions(modal, actions) {
   modal.appendChild(wrap);
 }
 
-function openNewGroupModal() {
+function openNewCategoryModal() {
   const modal = openModal(
-    'New top-level category',
-    `<p>Create a new top-level section for items that don't fit the defaults.</p>
+    'New category',
+    `<p>Create a new category for items that don't fit the defaults. No items are added by default.</p>
      <label class="form-field">
        <span>Category name</span>
-       <input type="text" id="new-group-name" placeholder="e.g. Lights, Fenders, Accessories">
+       <input type="text" id="new-category-name" placeholder="e.g. Lights, Fenders, Accessories">
      </label>`
   );
   appendActions(modal, [
@@ -243,36 +216,40 @@ function openNewGroupModal() {
       onClick: () => {
         const build = getBuild();
         if (!build) return;
-        const name = document.getElementById('new-group-name').value.trim();
+        const name = document.getElementById('new-category-name').value.trim();
         if (!name) {
           showToast('Enter a category name.', 'error');
           return;
         }
-        if (build.customGroups.includes(name) || defaultGroupNameExists(name)) {
+        if (categoryNameExists(name)) {
           showToast(`"${name}" already exists.`, 'error');
           return;
         }
-        build.customGroups.push(name);
+        build.categories.push(name);
         closeModal();
         commit();
-        showToast(`Added top-level category "${name}".`);
+        showToast(`Added category "${name}".`);
       },
     },
   ]);
-  document.getElementById('new-group-name').focus();
+  document.getElementById('new-category-name').focus();
 }
 
-function defaultGroupNameExists(name) {
-  return categoryGroups.some((g) => g.name.toLowerCase() === name.toLowerCase());
+function categoryNameExists(name) {
+  const build = getBuild();
+  if (!build) return false;
+  return build.categories.some(
+    (c) => c.toLowerCase() === name.toLowerCase()
+  );
 }
 
-function openRenameGroupModal(groupName) {
+function openRenameCategoryModal(categoryName) {
   const modal = openModal(
     'Rename category',
-    `<p>Rename the top-level category <strong>${groupName}</strong>.</p>
+    `<p>Rename the category <strong>${categoryName}</strong>.</p>
      <label class="form-field">
        <span>New name</span>
-       <input type="text" id="rename-group-name" value="${escAttr(groupName)}">
+       <input type="text" id="rename-category-name" value="${escAttr(categoryName)}">
      </label>`
   );
   appendActions(modal, [
@@ -283,27 +260,24 @@ function openRenameGroupModal(groupName) {
       onClick: () => {
         const build = getBuild();
         if (!build) return;
-        const name = document.getElementById('rename-group-name').value.trim();
+        const name = document.getElementById('rename-category-name').value.trim();
         if (!name) {
           showToast('Enter a category name.', 'error');
           return;
         }
-        if (name !== groupName) {
-          const idx = build.customGroups.indexOf(groupName);
+        if (name !== categoryName) {
+          const idx = build.categories.indexOf(categoryName);
           if (idx === -1) {
             showToast('Category not found.', 'error');
             return;
           }
-          if (build.customGroups.includes(name) || defaultGroupNameExists(name)) {
+          if (categoryNameExists(name)) {
             showToast(`"${name}" already exists.`, 'error');
             return;
           }
-          build.customGroups[idx] = name;
+          build.categories[idx] = name;
           for (const item of build.items) {
-            if (item.categoryGroup === groupName) {
-              item.categoryGroup = name;
-              if (item.category === groupName) item.category = name;
-            }
+            if (item.category === categoryName) item.category = name;
           }
         }
         closeModal();
@@ -312,27 +286,48 @@ function openRenameGroupModal(groupName) {
       },
     },
   ]);
-  document.getElementById('rename-group-name').focus();
+  document.getElementById('rename-category-name').focus();
 }
 
-function confirmDeleteGroup(groupName) {
+function confirmDeleteCategory(categoryName) {
   confirmAction(
-    `Delete the top-level category "${groupName}" and all ${countItemsInGroup(groupName)} item(s) in it?`,
+    `Delete the category "${categoryName}" and all ${countItemsInCategory(categoryName)} item(s) in it?`,
     'Delete'
   ).then((ok) => {
     if (!ok) return;
     const build = getBuild();
     if (!build) return;
-    build.customGroups = build.customGroups.filter((g) => g !== groupName);
-    build.items = build.items.filter((i) => i.categoryGroup !== groupName);
+    build.categories = build.categories.filter((c) => c !== categoryName);
+    build.items = build.items.filter((i) => i.category !== categoryName);
     commit();
-    showToast(`Deleted category "${groupName}".`);
+    showToast(`Deleted category "${categoryName}".`);
   });
 }
 
-function countItemsInGroup(groupName) {
+function clearDefaultItems() {
   const build = getBuild();
-  return build ? build.items.filter((i) => i.categoryGroup === groupName).length : 0;
+  if (!build) return;
+  const count = build.items.filter((i) => i.default).length;
+  if (count === 0) {
+    showToast('No default items to clear.');
+    return;
+  }
+  confirmAction(
+    `Clear all ${count} default item(s)? Real items you've added are kept.`,
+    'Clear Defaults'
+  ).then((ok) => {
+    if (!ok) return;
+    build.items = build.items.filter((i) => !i.default);
+    commit();
+    showToast('Default items cleared.');
+  });
+}
+
+function countItemsInCategory(categoryName) {
+  const build = getBuild();
+  return build
+    ? build.items.filter((i) => i.category === categoryName).length
+    : 0;
 }
 
 function escAttr(str) {
@@ -389,9 +384,9 @@ function openImportChoiceModal(items, warnings, filename) {
         const build = createBuild({ name: `Imported ${new Date().toLocaleDateString()}` });
         build.items = items.map((i) => ({
           ...i,
-          categoryGroup: i.categoryGroup || 'Other',
-          category: i.category || 'Other / Misc',
+          category: i.category || 'Other',
         }));
+        ensureCategories(build, build.items);
         state.builds.push(build);
         state.activeBuildId = build.id;
         editingItemId = null;
@@ -407,7 +402,11 @@ function openImportChoiceModal(items, warnings, filename) {
         closeModal();
         const build = getBuild();
         if (build) {
-          build.items = items;
+          build.items = items.map((i) => ({
+            ...i,
+            category: i.category || 'Other',
+          }));
+          ensureCategories(build, build.items);
           commit();
         }
         notifyWarnings(warnings);
@@ -420,13 +419,26 @@ function openImportChoiceModal(items, warnings, filename) {
         closeModal();
         const build = getBuild();
         if (build) {
-          build.items.push(...items);
+          const mapped = items.map((i) => ({
+            ...i,
+            category: i.category || 'Other',
+          }));
+          build.items.push(...mapped);
+          ensureCategories(build, mapped);
           commit();
         }
         notifyWarnings(warnings);
       },
     },
   ]);
+}
+
+function ensureCategories(build, items) {
+  for (const item of items) {
+    if (item.category && !build.categories.includes(item.category)) {
+      build.categories.push(item.category);
+    }
+  }
 }
 
 function notifyWarnings(warnings) {
@@ -472,7 +484,7 @@ function wireHeader() {
   });
 
   document.getElementById('new-build-btn').addEventListener('click', openNewBuildModal);
-  document.getElementById('new-group-btn').addEventListener('click', openNewGroupModal);
+  document.getElementById('new-group-btn').addEventListener('click', openNewCategoryModal);
 }
 
 function wireFooter() {
@@ -518,6 +530,11 @@ function wireFooter() {
       location.reload();
     });
   });
+
+  const clearDefaultsBtn = document.getElementById('clear-defaults-btn');
+  if (clearDefaultsBtn) {
+    clearDefaultsBtn.addEventListener('click', clearDefaultItems);
+  }
 }
 
 function readCsvFile(file) {

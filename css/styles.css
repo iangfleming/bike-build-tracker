@@ -20,7 +20,7 @@
 }
 
 html {
-  font-size: 15px;
+  font-size: 16px;
 }
 
 body {
@@ -233,7 +233,7 @@ input, select {
   color: var(--text-muted);
 }
 
-.category-group {
+.category-section {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -242,7 +242,7 @@ input, select {
   overflow: hidden;
 }
 
-.group-header {
+.category-header {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -252,7 +252,7 @@ input, select {
   flex-wrap: wrap;
 }
 
-.group-toggle {
+.category-toggle {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -262,18 +262,18 @@ input, select {
   font-size: inherit;
 }
 
-.group-caret {
+.category-caret {
   color: var(--text-muted);
   width: 1em;
   text-align: center;
 }
 
-.group-title {
+.category-title {
   font-size: 1rem;
   font-weight: 700;
 }
 
-.group-subtotal {
+.category-subtotal {
   display: flex;
   align-items: center;
   gap: 0.9rem;
@@ -284,11 +284,11 @@ input, select {
   flex-wrap: wrap;
 }
 
-.group-subtotal span {
+.category-subtotal span {
   white-space: nowrap;
 }
 
-.group-total-price {
+.cat-total-price {
   font-weight: 700;
   color: var(--text);
 }
@@ -302,47 +302,8 @@ input, select {
   font-size: 0.75rem;
 }
 
-.group-body {
+.category-body {
   padding: 0.5rem 0.9rem 0.9rem;
-}
-
-/* ---------- Category ---------- */
-
-.category-block {
-  margin-top: 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.category-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.4rem 0.7rem;
-  background: var(--surface-alt);
-  border-bottom: 1px solid var(--border);
-}
-
-.category-title {
-  font-size: 0.9rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.category-subtotal {
-  margin-left: auto;
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  display: flex;
-  gap: 0.8rem;
-}
-
-.cat-total-price {
-  font-weight: 600;
-  color: var(--text);
 }
 
 .items-table {
@@ -378,6 +339,20 @@ input, select {
 .item-row.acquired .item-name {
   text-decoration: line-through;
   text-decoration-color: var(--acquired-text);
+}
+
+.item-row-default {
+  background: var(--surface-alt);
+}
+
+.item-default-icon {
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.item-hint {
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .item-main {
@@ -830,11 +805,11 @@ input, select {
     overflow-x: auto;
   }
 
-  .group-header {
+  .category-header {
     gap: 0.6rem;
   }
 
-  .group-subtotal {
+  .category-subtotal {
     margin-left: 0;
     order: 3;
     width: 100%;
