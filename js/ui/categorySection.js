@@ -21,11 +21,14 @@ export function renderCategory(
   section.className = 'category-section';
   section.dataset.category = category;
 
+  const index = String(container.children.length + 1).padStart(2, '0');
+
   const header = document.createElement('div');
   header.className = 'category-header';
   header.innerHTML = `
     <button type="button" class="category-toggle" aria-expanded="${expanded}">
-      <span class="category-caret">${expanded ? '▾' : '▸'}</span>
+      <span class="category-caret">${expanded ? '▼' : '▶'}</span>
+      <span class="category-index">${index}</span>
       <h2 class="category-title">${esc(category)}</h2>
     </button>
     <div class="category-subtotal">
@@ -85,7 +88,7 @@ export function renderCategory(
     const expanded = toggle.getAttribute('aria-expanded') === 'true';
     toggle.setAttribute('aria-expanded', String(!expanded));
     body.hidden = expanded;
-    header.querySelector('.category-caret').textContent = expanded ? '▸' : '▾';
+    header.querySelector('.category-caret').textContent = expanded ? '▶' : '▼';
   });
 
   header.querySelector('.add-category-item-btn').addEventListener('click', (e) => {

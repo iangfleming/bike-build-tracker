@@ -9,6 +9,7 @@ import {
   closeModal,
   confirmAction,
 } from './ui/render.js';
+import { initTheme } from './ui/theme.js';
 
 const state = load();
 let filter = 'all';
@@ -70,7 +71,7 @@ function handleCategoryEvent(type, payload) {
             toggle.setAttribute('aria-expanded', 'true');
             body.hidden = false;
             const caret = toggle.querySelector('.category-caret');
-            if (caret) caret.textContent = '▾';
+            if (caret) caret.textContent = '▼';
           }
         }
         row.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -619,6 +620,7 @@ function wireModal() {
 
 // ---------- Init ----------
 
+initTheme();
 wireHeader();
 wireFooter();
 wireDragAndDrop();
